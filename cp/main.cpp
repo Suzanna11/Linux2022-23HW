@@ -49,12 +49,20 @@ int main(int argc, char** argv)
     {
         log_fatal(errno);
     }
-
-    int bytesWritten = write(copyToFD, buffer.data(), bytesRead);
-    if(bytesWritten < 0)
+    while(bytesRead != 0)
     {
-        log_fatal(errno);
+        int bytesWritten = write(copyToFD, buffer.data(), bytesRead);
+        if(bytesWritten < 0)
+        {
+            log_fatal(errno);
+        }
+        bytesRead = read(copyFromFD, buffer.data(),buffer.size());
+        if(bytesRead < 0)
+        {
+            log_fatal(errno);
+        }
     }
+
     if(close(copyToFD) < 0)
     {
         log_fatal(errno);
