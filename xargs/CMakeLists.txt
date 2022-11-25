@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
-project(system)
+project(xargs)
 
 set(CMAKE_CXX_STANDARD 23)
 
-add_executable(system main.cpp)
+add_executable(xargs main.cpp)

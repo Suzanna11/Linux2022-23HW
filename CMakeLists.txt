@@ -4,3 +4,4 @@ project(tutorial)
 
 add_subdirectory(cp)
 add_subdirectory(system)
+add_subdirectory(xargs)
