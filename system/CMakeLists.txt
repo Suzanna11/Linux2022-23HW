@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.23)
+project(system)
+
+set(CMAKE_CXX_STANDARD 23)
+
+add_executable(system main.cpp)
+target_include_directories(system PUBLIC ../utils)
