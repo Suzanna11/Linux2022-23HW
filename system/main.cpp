@@ -19,10 +19,7 @@ void do_command(char* argv[])
         perror("fork failed");
         exit(1);
     }
-    else {
-        std::cout << "I'm parent.\n";
-    }
-
+   
     int exit_status;
     waitpid(child, &exit_status, 0);
 
