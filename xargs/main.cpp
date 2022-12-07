@@ -7,20 +7,20 @@
 
 int main(int argc, char **argv)
 {
-    std::vector<std::string> arguments(100);
-    int i = 0;
-    std::cin >> arguments[i];
-    while(arguments[i] != "CTRL+D")
+    std::vector<std::string> arguments;
+    std::string argument;
+    while (std::cin >> argument)
     {
-        ++i;
-        std::cin >> arguments[i];
+        arguments.emplace_back(std::move(argument));
     }
 
-    char** args = new char*[arguments.size()];
+    std::vector<char*> argsVec(arguments.size(), nullptr);
+
     for (int j = 0; j < arguments.size(); j++)
     {
-        args[j] = const_cast<char*>(arguments[j].c_str());
+        argsVec[j] = strdup(arguments[j].c_str());
     }
+    argsVec.emplace_back(nullptr);
 
     pid_t child = fork();
     if(child < 0)
@@ -30,12 +30,10 @@ int main(int argc, char **argv)
     }
     else if (child == 0)
     {
-        if(execvp(argv[0], args) < 0)
+        if(execvp(argv[0], argsVec.data()) < 0)
         {
             perror("exec failed.\n");
             exit(EXIT_FAILURE);
         }
     }
-
-
 }
