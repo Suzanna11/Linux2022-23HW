@@ -36,4 +36,18 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
     }
+    
+    int exit_status;
+    waitpid(child, &exit_status, 0);
+
+    if (WIFEXITED(exit_status))
+    {
+        std::cout << "Child terminated normally with status code " << WEXITSTATUS(exit_status) << "\n";
+    }
+    else if (WIFSIGNALED(exit_status))
+    {
+        std::cout << "Child process was terminated by a signal.\n";
+    }
+
+    std::for_each(argsVec.begin(), argsVec.end(), [](char*& a){ free(a); a = nullptr; }); 
 }
