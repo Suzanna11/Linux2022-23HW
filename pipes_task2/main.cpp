@@ -33,19 +33,23 @@ int main() {
     {
         close(pipe_fd1[1]);
         close(pipe_fd2[0]);
+        while(true)
+        {
+            int m;
+            if(read(pipe_fd1[0], &m, sizeof(int)) == -1)
+            {
+                std::cout << "Cannot read.\n";
+                exit(errno);
+            }
+            if(m == -1) break;
+            int res = nthPrime(m);
+            if(write(pipe_fd2[1], &res, sizeof(int)) == -1)
+            {
+                std::cout << "Cannot write.\n";
+                exit(errno);
+            }
+        }
 
-        int m;
-        if(read(pipe_fd1[0], &m, sizeof(int)) == -1)
-        {
-            std::cout << "Cannot read.\n";
-            exit(errno);
-        }
-        int res = nthPrime(m);
-        if(write(pipe_fd2[1], &res, sizeof(int)) == -1)
-        {
-            std::cout << "Cannot write.\n";
-            exit(errno);
-        }
     }
     else
     {
@@ -57,14 +61,22 @@ int main() {
         {
             std::getline (std::cin, n);
             if(n == "exit")
-                break;
+            {
+                int x = -1;
+                if(write(pipe_fd1[1], &x, sizeof(int)) == -1)
+                {
+                    std::cout << "Cannot write.\n";
+                    exit(errno);
+                }
+            }
+
             int n1 = std::stoi(n);
             if(write(pipe_fd1[1], &n1, sizeof(n1)) == -1)
             {
                 std::cout << "Cannot write.\n";
                 exit(errno);
             }
-            wait(nullptr);
+
             int resultFromChild;
             if(read(pipe_fd2[0], &resultFromChild, sizeof(int)) == -1)
             {
@@ -73,6 +85,7 @@ int main() {
             }
             std::cout << "expected prime number : " << resultFromChild << "\n";
         }
+         wait(nullptr);
     }
 }
 bool isPrime(int n) {
