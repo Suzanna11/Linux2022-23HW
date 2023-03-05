@@ -68,6 +68,7 @@ int main() {
                     std::cout << "Cannot write.\n";
                     exit(errno);
                 }
+                break;
             }
 
             int n1 = std::stoi(n);
