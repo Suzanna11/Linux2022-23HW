@@ -4,12 +4,13 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <vector>
+#include <sys/wait.h>
 
 int main()
 {
     const int buf_size = 10;
     const int num = 100;
-    const char* sh_m = "my_shared_memory";
+    const char* sh_m = "/my_shared_memory";
     const int map_size = buf_size * sizeof(int);
 
     int shm_fd = shm_open(sh_m, O_CREAT | O_RDWR, 0666);
@@ -33,9 +34,9 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    const char* empty = "empty";
-    const char* full = "full";
-    const char* mutex = "mutex";
+    const char* empty = "/empty";
+    const char* full = "/full";
+    const char* mutex = "/mutex";
 
     sem_t* empty_sem_ptr = sem_open(empty, O_CREAT, 0666, buf_size);
     if (empty_sem_ptr == SEM_FAILED)
@@ -80,6 +81,7 @@ int main()
 
             sem_post(empty_sem_ptr);
         }
+        exit(0);
     }
     else
     {
@@ -104,6 +106,7 @@ int main()
 
             sem_post(full_sem_ptr);
         }
+        wait(NULL);
     }
 
     munmap(addr, map_size);
