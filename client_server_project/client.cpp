@@ -1,14 +1,10 @@
 #include <iostream>
 #include <sys/mman.h>
-#include <sys/stat.h>     
-#include <fcntl.h> 
+#include <fcntl.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include <sys/wait.h>
 #include <climits>
 #include "utils.h"
-
-
 
 int main()
 {
@@ -20,11 +16,11 @@ int main()
         exit(errno);
     }
 
-    std::size_t shm_size = sizeof(Function);
+    std::size_t shm_size = sizeof(Task);
     
 
-    Function* func = (Function*)mmap(nullptr, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (func == MAP_FAILED)
+    Task* task = (Task*)mmap(nullptr, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (task == MAP_FAILED)
     {
         std::cerr << "Failed to map shared memory." << std::endl;
         exit(errno);
@@ -54,11 +50,11 @@ int main()
     std::size_t functionNumber = 0;
     std::cout << "Enter the function number (0: add, 1: sub, 2: mul, 3: div): ";
     std::cin >> functionNumber;
-    func->id = functionNumber;
+    task->id = functionNumber;
     sem_post(sem1);
     sem_wait(sem2);
-    
-    if (func->id == INT_MAX)
+
+    if (task->id == INT_MAX)
         exit(EXIT_FAILURE);
 
     std::cout << "Enter 2 arguments: ";
@@ -67,19 +63,22 @@ int main()
     std::cin >> number1;
     std::cin >> number2;
     
-    func->arg_1 = number1;
-    func->arg_2 = number2;
+    task->arg_1 = number1;
+    task->arg_2 = number2;
     
     sem_post(sem1);
     sem_wait(sem2);
 
-    if (func->result == INT_MAX)
+    if (task->id == INT_MAX)
         exit(EXIT_FAILURE);
 
-    std::cout << "The result is: " << func->result << std::endl;
+    if (task->result == INT_MAX)
+        exit(EXIT_FAILURE);
+
+    std::cout << "The result is: " << task->result << std::endl;
 
     sem_close(sem1);
     sem_close(sem2);
-    munmap(func, shm_size);
+    munmap(task, shm_size);
     return 0;
 }

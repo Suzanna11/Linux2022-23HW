@@ -1,108 +1,138 @@
 #include <iostream>
 #include <sys/mman.h>
-#include <sys/stat.h>     
-#include <fcntl.h> 
+#include <fcntl.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include <sys/wait.h>
 #include <climits>
+#include <queue>
 #include "utils.h"
+#include <vector>
+#include <signal.h>
 
-typedef int (*operation)(int, int);
+class ThreadPool
+{
+private:
+    std::queue<Task*> taskQueue;
+    std::vector<pthread_t*> threads;
+    int threadsCount;
+    pthread_mutex_t lock;
+    pthread_cond_t hasFunction;
+
+public:
+    ThreadPool(int num)
+    {
+        if(pthread_mutex_init(&lock, nullptr) < 0)
+        {
+            perror("mutex init failed.");
+        }
+        if(pthread_cond_init(&hasFunction, nullptr) < 0)
+        {
+            perror("cond failed.");
+        }
+        this->threadsCount = num;
+
+        for(int i = 0; i < this->threadsCount; ++i) {
+            pthread_t *thread = new pthread_t;
+            threads.push_back(thread);
+            pthread_create(thread, nullptr, execute, this);
+        }
+    }
+
+    ~ThreadPool()
+    {
+        pthread_cond_destroy(&hasFunction);
+        pthread_mutex_destroy(&lock);
+        for(int i = 0; i < this->threadsCount; ++i)
+        {
+            pthread_kill(*threads[i], SIGKILL);
+            delete threads[i];
+        }
+    }
+
+    void addTasks(Task* task)
+    {
+        pthread_mutex_lock(&lock);
+        this->taskQueue.push(task);
+        pthread_mutex_unlock(&lock);
+        pthread_cond_signal(&hasFunction);
+    }
+
+    // void stop()
+    // {
+
+    // }
+
+    static void* execute(void* arg)
+    {
+        ThreadPool* threadpool = (ThreadPool*) arg;
+        while(true)
+        {
+            pthread_mutex_lock(&threadpool->lock);
+            while(threadpool->taskQueue.empty())
+            {
+                pthread_cond_wait(&threadpool->hasFunction, &threadpool->lock);
+            }
+            Task* task = threadpool->taskQueue.front();
+            threadpool->taskQueue.pop();
+            pthread_mutex_unlock(&threadpool->lock);
+            task->execute_task();
+        }
+    }
+};
 
 int main()
 {
-	const char* sem_name1 = "/sem1";
-	
-	sem_t* sem1 = sem_open(sem_name1, O_CREAT, 0666, 0);
-	
-	if (sem1 == SEM_FAILED)
-	{
-		std::cerr << "Failed to create semaphore." << std::endl;
-		exit(errno);
-	}
-	
-	const char* sem_name2 = "/sem2";
-	
-	sem_t* sem2 = sem_open(sem_name2, O_CREAT, 0666, 0);
-	
-	if (sem2 == SEM_FAILED)
-	{
-		std::cerr << "Failed to create semaphore." << std::endl;
-		exit(errno);
-	}
-	
-	const char* filename = "/shm";
-	int shm_fd = shm_open(filename, O_RDWR | O_CREAT, 0666);
-	if (shm_fd == -1)
-	{
-		std::cerr << "Failed to create shared memory." << std::endl;
-		exit(errno);
-	}
+    const int thNum = 5;
+    ThreadPool thp(thNum);
+    const char* sem_name1 = "/sem1";
+    const char* sem_name2 = "/sem2";
+    sem_t* sem1 = sem_open(sem_name1, O_CREAT, 0666, 0);
 
-	std::size_t shm_size = sizeof(Function);
-	if (ftruncate(shm_fd, shm_size) == -1)
-	{
-		std::cerr << "Failed to resize shared memory." << std::endl;
-		exit(errno);
-	}
+    if (sem1 == SEM_FAILED)
+    {
+        std::cerr << "Failed to create semaphore" << std::endl;
+        exit(errno);
+    }
 
-	Function* func = (Function*)mmap(nullptr, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    sem_t* sem2 = sem_open(sem_name2, O_CREAT, 0666, 0);
+    if (sem2 == SEM_FAILED)
+    {
+        std::cerr << "Failed to create semaphore" << std::endl;
+        exit(errno);
+    }
 
-	if (func == MAP_FAILED)
-	{
-		std::cerr << "Failed to map shared memory." << std::endl;
-		exit(errno);
-	}
-	close(shm_fd);
+    const char* filename = "/shm";
+    int shm_fd = shm_open(filename, O_RDWR | O_CREAT, 0666);
+    if (shm_fd == -1)
+    {
+        std::cerr << "Failed to create shared memory." << std::endl;
+        exit(errno);
+    }
 
-	operation op;
-	
-	while(true)
-	{
-		sem_wait(sem1);
-		if (func->id > 3 || func->id < 0)
-		{
-			std::cerr << "Wrong input. Function number must be from 0 to 3" << std::endl;
-		   	func->id = INT_MAX;
-		}
-		else
-		{	
-		    	switch (func->id)
-		   	{
-			case 0:
-			    	op = addition;
-			    	func->result = op(func->arg_1, func->arg_2);
-			    	break;
+    std::size_t shm_size = sizeof(Task);
+    if (ftruncate(shm_fd, shm_size) == -1)
+    {
+        std::cerr << "Failed to resize shared memory." << std::endl;
+        exit(errno);
+    }
 
-			case 1:
-			    	op = substraction;
-			    	func->result = op(func->arg_1, func->arg_2);
-			    	break;
+    Task* currTask = (Task*)mmap(nullptr, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
-			case 2:
-			    	op = multiplication;
-			    	func->result = op(func->arg_1, func->arg_2);
-			    	break;
+    if (currTask == MAP_FAILED)
+    {
+        std::cerr << "Failed to map shared memory." << std::endl;
+        exit(errno);
+    }
+    close(shm_fd);
 
-			case 3:
-			    	op = division;
-			    	func->result = op(func->arg_1, func->arg_2);
-			    	break;
-		    	}
-		    	
-		    	if(func->result == INT_MAX)
-				std::cerr << "Cannot divide by zero." << std::endl;
-		}
-		
-		sem_post(sem2);
-	}
-	
-	sem_close(sem1);
-	sem_unlink(sem_name1);
-	sem_close(sem2);
-	sem_unlink(sem_name2);
-	munmap(func, shm_size);
-	shm_unlink(filename);
-	return 0;
+    while(true)
+    {
+        sem_wait(sem1);
+        thp.addTasks(currTask);
+        sem_post(sem2);
+    }
+
+    munmap(currTask, shm_size);
+    shm_unlink(filename);
+    return 0;
 }
