@@ -57,11 +57,6 @@ public:
         pthread_cond_signal(&hasFunction);
     }
 
-    // void stop()
-    // {
-
-    // }
-
     static void* execute(void* arg)
     {
         ThreadPool* threadpool = (ThreadPool*) arg;

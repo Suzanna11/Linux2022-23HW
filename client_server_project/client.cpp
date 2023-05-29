@@ -47,33 +47,39 @@ int main()
         exit(errno);
     }
 
-    std::size_t functionNumber = 0;
+    int functionNumber = 0;
     std::cout << "Enter the function number (0: add, 1: sub, 2: mul, 3: div): ";
     std::cin >> functionNumber;
+    
+    if (functionNumber > 3 || functionNumber < 0)
+    {
+	std::cerr << "the function number range  has to be from 0 to 3." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    
     task->id = functionNumber;
     sem_post(sem1);
     sem_wait(sem2);
 
-    if (task->id == INT_MAX)
-        exit(EXIT_FAILURE);
+
 
     std::cout << "Enter 2 arguments: ";
     int number1;
     int number2;
     std::cin >> number1;
     std::cin >> number2;
-    
+
+    if (number2 == 0)
+    {
+	std::cerr << "Cannot divide by zero!" << std::endl;
+	exit(EXIT_FAILURE);    
+    }
+
     task->arg_1 = number1;
     task->arg_2 = number2;
     
     sem_post(sem1);
     sem_wait(sem2);
-
-    if (task->id == INT_MAX)
-        exit(EXIT_FAILURE);
-
-    if (task->result == INT_MAX)
-        exit(EXIT_FAILURE);
 
     std::cout << "The result is: " << task->result << std::endl;
 
